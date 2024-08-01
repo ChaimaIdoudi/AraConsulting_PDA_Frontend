@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowRight, faSearch, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRight, faSearch, faPlus, faFilter } from '@fortawesome/free-solid-svg-icons';
 import Navbar from '../components/NavBar';
 import axios from 'axios';
 import { Modal, Button, Form, ProgressBar, Alert, Badge } from 'react-bootstrap';
@@ -16,6 +16,7 @@ export default function Home() {
   const [productAvailability, setProductAvailability] = useState([]);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
 
   useEffect(() => {
     const fetchOfList = async () => {
@@ -32,11 +33,19 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const filtered = ofList.filter((of) =>
+    const filteredByText = ofList.filter((of) =>
       of.ofNumber.toString().includes(searchText)
     );
-    setFilteredOfList(filtered);
-  }, [searchText, ofList]);
+    const filteredByStatus = filterByStatus(filteredByText);
+    setFilteredOfList(filteredByStatus);
+  }, [searchText, ofList, statusFilter]);
+
+  const filterByStatus = (ofList) => {
+    if (statusFilter === 'All') {
+      return ofList;
+    }
+    return ofList.filter((of) => determineOfStatus(of) === statusFilter);
+  };
 
   const handleSearchChange = (e) => {
     setSearchText(e.target.value);
@@ -178,6 +187,46 @@ export default function Home() {
     return product.addedQuantity <= product.quantity;
   };
 
+  const determineOfStatus = (of) => {
+    let status = 'Not Started';
+    let allProductsStarted = false;
+    let allProductsCompleted = true;
+
+    of.products.forEach((product) => {
+      const remainingQty = product.quantity - product.addedQuantity;
+      if (remainingQty === product.quantity) {
+        allProductsCompleted = false;
+      } else if (remainingQty > 0) {
+        status = 'In Progress';
+        allProductsStarted = true;
+        allProductsCompleted = false;
+      } else {
+        allProductsStarted = true;
+      }
+    });
+
+    if (allProductsCompleted) {
+      status = 'Completed';
+    } else if (!allProductsStarted) {
+      status = 'Not Started';
+    }
+
+    return status;
+  };
+
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case 'Not Started':
+        return { color: 'red', fontWeight: 'bold' };
+      case 'In Progress':
+        return { color: 'blue', fontWeight: 'bold' };
+      case 'Completed':
+        return { color: 'green', fontWeight: 'bold' };
+      default:
+        return {};
+    }
+  };
+
   return (
     <>
       <Navbar />
@@ -226,11 +275,31 @@ export default function Home() {
             <FontAwesomeIcon icon={faSearch} />
           </button>
         </div>
+
+        <div className='filter-container d-flex align-items-center mb-4'>
+          <label htmlFor='statusFilter' className='mr-2 text-warning'>
+            <FontAwesomeIcon icon={faFilter} style={{ fontSize: '1.25rem' }} />
+          </label>
+          <select 
+            id='statusFilter'
+            className='form-control m-2'
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ maxWidth: '200px' }}
+          >
+            <option value='All'>All</option>
+            <option value='Not Started'>Not Started</option>
+            <option value='In Progress'>In Progress</option>
+            <option value='Completed'>Completed</option>
+          </select>
+        </div>
+
         <table className='table table-hover table-bordered' style={{ maxWidth: '800px' }}>
           <thead className='thead-dark'>
             <tr>
               <th scope='col'>OF Number</th>
               <th scope='col'>Article Name</th>
+              <th scope='col'>Status</th>
               <th scope='col'>Action</th>
             </tr>
           </thead>
@@ -239,6 +308,9 @@ export default function Home() {
               <tr key={of._id}>
                 <td>{of.ofNumber}</td>
                 <td>{of.articleName}</td>
+                <td style={getStatusStyle(determineOfStatus(of))}>
+                  {determineOfStatus(of)}
+                </td>
                 <td>
                   <button
                     className='btn btn-warning'
@@ -252,6 +324,7 @@ export default function Home() {
             ))}
           </tbody>
         </table>
+
         <Modal show={showModal} onHide={handleCloseModal} centered>
           <Modal.Header closeButton>
             <Modal.Title className='text-center' style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
@@ -270,7 +343,7 @@ export default function Home() {
                 {selectedOf.products.map((product, index) => (
                   <div key={index} className='mb-4'>
                     <h6 className='mb-2' style={{ fontWeight: 'bold' }}>Product : {product.productName}</h6>
-                    <h6 className='text-muted mb-2' >Quantity needed: {product.quantity}</h6>
+                    <h6 className='text-muted mb-2'>Quantity needed: {product.quantity}</h6>
                     <div
                       className={`mb-2 ${isQuantitySufficient(index) ? 'text-success' : 'text-danger'}`}
                       style={{ fontSize: '1rem' }}
