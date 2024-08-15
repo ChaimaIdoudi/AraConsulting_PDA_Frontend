@@ -10,7 +10,6 @@ import {
 import Navbar from '../components/NavBar'
 import axios from 'axios'
 import { Modal, Button, Form, ProgressBar, Alert, Badge } from 'react-bootstrap'
-import { useZxing } from 'react-zxing'
 import BarcodeScanner from '../pda/scan'
 
 export default function Home() {
@@ -61,33 +60,35 @@ export default function Home() {
   }
 
   const handleShowModal = async (of) => {
-    setSelectedOf(of)
-    setShowModal(true)
-    setProductCodes({})
-    setProductAvailability([])
-    setAlertMessage('') // Clear any previous alert messages
-
+    setSelectedOf(of);
+    setShowModal(true);
+    setProductCodes({});
+    setProductAvailability([]);
+    setAlertMessage(''); // Clear any previous alert messages
+  
     try {
+      // Fetch stock availability for each product
       const availabilityPromises = of.products.map((product) =>
         axios.post('http://localhost:3000/stocks/check-availability', {
           productName: product.productName,
           quantity: product.quantity,
         })
-      )
-
-      const availabilityResults = await Promise.all(availabilityPromises)
-      const availabilityData = availabilityResults.map((result) => result.data)
-      setProductAvailability(availabilityData)
+      );
+  
+      const availabilityResults = await Promise.all(availabilityPromises);
+      const availabilityData = availabilityResults.map((result) => result.data);
+      setProductAvailability(availabilityData);
     } catch (error) {
-      console.error('Error checking product availability:', error)
+      console.error('Error checking product availability:', error);
       setProductAvailability(
         of.products.map(() => ({
           available: false,
           message: 'Error checking product availability.',
         }))
-      )
+      );
     }
-  }
+  };
+  
 
   const handleCloseModal = () => {
     setShowModal(false)
@@ -137,12 +138,11 @@ export default function Home() {
       setTimeout(() => setShowAlert(false), 3000)
     }
   }
-  const [result, setResult] = useState('')
-  const { ref } = useZxing({
-    onDecodeResult: (result) => {
-      setResult(result.getText())
-    },
-  })
+  const handleBarcodeScan = (scannedCode) => {
+    setCurrentCode(scannedCode);
+    setShowScanner(false); // Optionally hide the scanner after a successful scan
+  };
+
 
   const handleSaveCodes = async () => {
     try {
@@ -414,7 +414,7 @@ export default function Home() {
                         </Badge>
                       ))}
                     </div>
-                    {showScanner && <BarcodeScanner />}
+                    {showScanner && <BarcodeScanner onScan={handleBarcodeScan} />}
 
                     <ProgressBar
                       now={progress(index)}
@@ -448,5 +448,6 @@ export default function Home() {
         </Modal>
       </div>
     </>
-  )
+  );
 }
+  
