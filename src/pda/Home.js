@@ -60,12 +60,12 @@ export default function Home() {
   }
 
   const handleShowModal = async (of) => {
-    setSelectedOf(of);
-    setShowModal(true);
-    setProductCodes({});
-    setProductAvailability([]);
-    setAlertMessage(''); // Clear any previous alert messages
-  
+    setSelectedOf(of)
+    setShowModal(true)
+    setProductCodes({})
+    setProductAvailability([])
+    setAlertMessage('')
+
     try {
       // Fetch stock availability for each product
       const availabilityPromises = of.products.map((product) =>
@@ -73,27 +73,43 @@ export default function Home() {
           productName: product.productName,
           quantity: product.quantity,
         })
-      );
-  
-      const availabilityResults = await Promise.all(availabilityPromises);
-      const availabilityData = availabilityResults.map((result) => result.data);
-      setProductAvailability(availabilityData);
+      )
+
+      const availabilityResults = await Promise.all(availabilityPromises)
+
+      const availabilityData = availabilityResults.map((result, index) => {
+        if (result.data.error || result.data.available === false) {
+          return {
+            available: false,
+            message: result.data.message || 'Product not available in stock.',
+            product: of.products[index].productName,
+          }
+        } else {
+          return {
+            available: true,
+            message: 'Product is available.',
+            product: of.products[index].productName,
+          }
+        }
+      })
+
+      setProductAvailability(availabilityData)
     } catch (error) {
-      console.error('Error checking product availability:', error);
+      console.error('Error checking product availability:', error)
       setProductAvailability(
-        of.products.map(() => ({
+        of.products.map((product) => ({
           available: false,
           message: 'Error checking product availability.',
+          product: product.productName,
         }))
-      );
+      )
     }
-  };
-  
+  }
 
   const handleCloseModal = () => {
     setShowModal(false)
     setSelectedOf(null)
-    setAlertMessage('') // Clear any alert messages when closing modal
+    setAlertMessage('')
   }
 
   const handleAddCode = async (productIndex) => {
@@ -139,10 +155,9 @@ export default function Home() {
     }
   }
   const handleBarcodeScan = (scannedCode) => {
-    setCurrentCode(scannedCode);
-    setShowScanner(false); // Optionally hide the scanner after a successful scan
-  };
-
+    setCurrentCode(scannedCode)
+    setShowScanner(false) // Optionally hide the scanner after a successful scan
+  }
 
   const handleSaveCodes = async () => {
     try {
@@ -199,36 +214,45 @@ export default function Home() {
 
   const isQuantitySufficient = (productIndex) => {
     const product = selectedOf.products[productIndex]
+
+    // Check if the product is found in the stock availability array
+    const productAvailabilityInfo = productAvailability.find(
+      (p) => p.product === product.productName
+    )
+
+    if (productAvailabilityInfo && !productAvailabilityInfo.available) {
+      return false // Product is not available in stock
+    }
+
+    // Additionally, check the quantity
     return product.addedQuantity <= product.quantity
   }
 
   const determineOfStatus = (of) => {
-    let status = 'Not Started'
-    let allProductsStarted = false
-    let allProductsCompleted = true
-
+    let hasStarted = false;
+    let allCompleted = true;
+  
     of.products.forEach((product) => {
-      const remainingQty = product.quantity - product.addedQuantity
-      if (remainingQty === product.quantity) {
-        allProductsCompleted = false
-      } else if (remainingQty > 0) {
-        status = 'In Progress'
-        allProductsStarted = true
-        allProductsCompleted = false
-      } else {
-        allProductsStarted = true
+      const remainingQty = product.quantity - product.addedQuantity;
+  
+      if (remainingQty > 0) {
+        allCompleted = false;
       }
-    })
-
-    if (allProductsCompleted) {
-      status = 'Completed'
-    } else if (!allProductsStarted) {
-      status = 'Not Started'
+  
+      if (product.addedQuantity > 0) {
+        hasStarted = true;
+      }
+    });
+  
+    if (allCompleted) {
+      return 'Completed';
+    } else if (hasStarted) {
+      return 'In Progress';
+    } else {
+      return 'Not Started';
     }
-
-    return status
-  }
-
+  };
+  
   const getStatusStyle = (status) => {
     switch (status) {
       case 'Not Started':
@@ -414,7 +438,9 @@ export default function Home() {
                         </Badge>
                       ))}
                     </div>
-                    {showScanner && <BarcodeScanner onScan={handleBarcodeScan} />}
+                    {showScanner && (
+                      <BarcodeScanner onScan={handleBarcodeScan} />
+                    )}
 
                     <ProgressBar
                       now={progress(index)}
@@ -448,6 +474,5 @@ export default function Home() {
         </Modal>
       </div>
     </>
-  );
+  )
 }
-  
